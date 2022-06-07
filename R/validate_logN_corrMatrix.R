@@ -1,0 +1,123 @@
+#' @title Validation of Correlation matrix of Log-Normal distribution
+#' @description Given a set of Log-Normal variables with their means, standard deviations and correlation matrix,
+#' this function evaluates if the correlation structure respects two conditions:
+#' \enumerate{
+#' \item For each couple of variables, \eqn{X1}, \eqn{X2}, it is tested if \eqn{\rho(X1,X2)} satisfies the condition
+#' necessary to obtain a positive definite correlation/covariance matrix for the
+#' Normal distribution underlying the Log-Normal one. This condition is also sufficient for 2x2 matrix [1].
+#' If this condition is not satisfied, a warning message is displayed
+#' but covariance matrix of the Normal distribution is still computed even if it is not positive definite.
+#' \item For each couple of variables, \eqn{X1}, \eqn{X2}, it is tested if \eqn{\rho(X1,X2)*cv1*cv2 > -1}.
+#' If this condition is not satisfied for all the couples the covariance matrix of the underlying Normal distribution cannot
+#' be computed. In fact, the covariance between \eqn{X1}, \eqn{X2} of the Normal distribution, \eqn{\Sigma^2(X1,X2)},
+#' is defined as \eqn{ln((\rho(X1,X2)*cv1*cv2 )+1)} [1]. In this case, a warning message will be displayed and a summary of the
+#' performed tests is returned.
+#' }
+#' @export
+#' @param mu Array object which contains mean values of variables with a Log-Normal distribution.
+#' @param sd Array object which contains sd values of variables with a Log-Normal distribution.
+#' @param corrMatrix Matrix object which contains correlations of variables with a Log-Normal distribution.
+#' @return A list containing:\tabular{ll}{
+#' \code{is_valid_logN_corrMat} \tab Boolean flag which indicates if the input correlation matrix satisfies
+#'    condition 1. \cr
+#'    \tab \cr
+#'    \code{can_log_transf_covMat} \tab Boolean flag which indicates if the input correlation matrix satisfies
+#'    condition 2. \cr
+#'    \tab \cr
+#'    \code{validation_res} \tab Matrix object which contains a brief summary of the tested conditions on the input
+#'    correlation matrix. It is composed by N(=number of Log-Normal variables couples) rows and 8 columns:\cr
+#'    \tab \itemize{
+#'    \item{\code{var1}:} {numerical index of the first Log-Normal variable of the couple, \eqn{X1}}
+#'    \item{\code{var2}:} {numerical index of the second Log-Normal variable of the couple, \eqn{X2}}
+#'    \item{\code{lower}:} {lower bound for the range of Log-Normal correlation between \code{var1} and \code{var2}}
+#'    \item{\code{upper}:} {upper bound for the range of Log-Normal correlation between \code{var1} and \code{var2}}
+#'    \item{\code{tested_corr}:} {input correlation value between \code{var1} and \code{var2}}
+#'    \item{\code{is_valid_bound}:} {numerical flag. If \emph{1} \code{tested_corr} is inside the range, \emph{0}
+#'    otherwise}
+#'    \item{\code{tested_for_logTransf}:} {value computed for testing condition 2 (\eqn{\rho(X1,X2)*cv1*cv2})}
+#'    \item{\code{can_logTransf}:} {numerical flag. If \emph{1} covariance of normal distribution between
+#'    \code{var1} and \code{var2} can be computed, \emph{0} otherwise.}
+#'    } \cr
+#'    \tab \cr
+#' }
+#' @note
+#' Within this package, function used for sampling from the multivariate Log-Normal distribution (\code{mvlogn})
+#' can overcome situations in which covariance matrix of the Normal distribution underlying the Log-Normal one is
+#' not positive definite (i.e. condition 1 not satisfied) by approximating it to the nearest positive definite. This may alter the desired
+#' correlation structure, but simulation is still allowed. On the contrary, if condition 2 is not satisfied,
+#' simulation cannot be performed because computing Normal covariance matrix is impossible to calculate since the argument of
+#' logarithmic transformation would be negative for some couples of variables.
+#' @author Alessandro De Carlo \email{alessandro.decarlo01@@universitadipavia.it}
+#' @references
+#' [1] Henrique S. Xavier, Filipe B. Abdalla, Benjamin Joachimi, Improving lognormal models for
+#' cosmological fields, Monthly Notices of the Royal Astronomical Society,
+#' Volume 459, Issue 4, 11 July 2016, Pages 3693–3710,
+#' \href{https://doi.org/10.1093/mnras/stw874}{https://doi.org/10.1093/mnras/stw874}
+#' @seealso \code{\link[Matrix]{nearPD}}
+#' @seealso \code{\link{get_logNcorr_bounds}}
+#' @seealso \code{\link{logn_to_normal}}
+#' @examples
+#'
+#' #CONDITION 1 AND 2 SATISFIED
+#' #input correlation matrix
+#' corr<- diag(rep(1,4))
+#' corr[1,4] <- 0.9
+#' corr[4,1]<-corr[1,4]
+#' corr[2,4] <- -0.2
+#' corr[4,2] <- corr[2,4]
+#' corr[3,2] <- -0.1
+#' corr[2,3] <- corr[3,2]
+#' #input standard deviations
+#' sd2 <- array(c(rep(1,4)))
+#' #input means
+#' mu2 <- array(rep(2.5,4))
+#' validate_logN_corrMatrix(mu2,sd2,corr)
+#'
+#' #output
+#'
+#' #$is_valid_logN_corrMat
+#' #[1] TRUE
+#' #
+#' #$can_log_transf_covMat
+#' #[1] TRUE
+#'
+#' #$validation_res
+#' #      var1 var2 lower      upper tested_corr   is_valid_bound tested_for_logTransf  can_logTransf
+#' #[1,]    1    2 -0.862069     1         0.0              1                0.000             1
+#' #[2,]    1    3 -0.862069     1         0.0              1                0.000             1
+#' #[3,]    1    4 -0.862069     1         0.9              1                0.144             1
+#' #[4,]    2    3 -0.862069     1        -0.1              1               -0.016             1
+#' #[5,]    2    4 -0.862069     1        -0.2              1               -0.032             1
+#' #[6,]    3    4 -0.862069     1         0.0              1                0.000             1
+
+
+validate_logN_corrMatrix <- function(mu,sd,corrMatrix){
+
+    #parsing
+    validate_corrMatrix(corrMatrix)
+    validate_array("mu",mu,corrMatrix,"corrMatrix")
+    validate_array("sd",sd,corrMatrix,"corrMatrix")
+    #getting bounds
+    bounds <- get_logNcorr_bounds(mu,sd)
+    #test bounds and if a covariance matrix of underlying Normal distribution
+    #can be computed
+    cv <- sd/mu
+    tested <- matrix(0L, ncol = 1, nrow = nrow(bounds))
+    tested_logt <- matrix(0L, ncol = 1, nrow = nrow(bounds))
+    test_res <- matrix(F, ncol = 2, nrow = nrow(bounds))
+    for (j in 1:nrow(bounds)) {
+        tested[j,1] <- corrMatrix[bounds[j,1],bounds[j,2]]
+        test_res[j,1] <- corrMatrix[bounds[j,1],bounds[j,2]]>bounds[j,"lower"] &&
+            corrMatrix[bounds[j,1],bounds[j,2]]<bounds[j,"upper"]
+        tested_logt[j,1] <- (corrMatrix[bounds[j,1],bounds[j,2]]*cv[bounds[j,1]]*cv[bounds[j,2]])
+        test_res[j,2] <- tested_logt[j,1] > -1
+    }
+    final_recap <- cbind(bounds,tested,test_res[,1],tested_logt,test_res[,2])
+    colnames(final_recap) <- c("var1","var2","lower","upper","tested_corr","is_valid_bound",
+                               "tested_for_logTransf","can_logTransf")
+    out_list <- list()
+    out_list[["is_valid_logN_corrMat"]] <- all(test_res[,1])
+    out_list[["can_log_transf_covMat"]] <- all(test_res[,2])
+    out_list[["validation_res"]] <- final_recap
+    return(out_list)
+}
