@@ -4,11 +4,13 @@
 \alias{estimate_corr_bounds}
 \title{Estimation of bounds of indirect correlations}
 \usage{
-estimate_corr_bounds(corrMat)
+estimate_corr_bounds(corrMat, widen_factor = 0.2)
 }
 \arguments{
 \item{corrMat}{Matrix Object which represents a correlation matrix. Indirect correlations to be estimated must be
 indicated by \code{NA}. This matrix must be symmetric, thus it must contain at least two \code{NA} values.}
+
+\item{widen_factor}{number between 0 and 1. If there is a unique path, the range for that indirect correlation is computed considering \eqn{cost +/- widen_factor*cost} where \eqn{cost} is the cost of the unique existing path. Default value is 0.2.}
 }
 \value{
 A matrix object with N(= number of indirect correlations) rows and 4 columns reporting:
@@ -28,7 +30,7 @@ visiting one node at most once are considered.
 
 The cost of each path is computed by multiplying the correlations met along the path and, the minimum and the maximum costs are used
 to identify the indirect correlation range. If there is not any path between two nodes, maximum and minimum values will be set to \code{NA}. If
-there is a unique path, the bound is computed considering \eqn{cost +/- 0.2*cost} where \eqn{cost} is the cost of the unique existing path.
+there is a unique path, the bound is computed considering \eqn{cost +/- widen_factor*cost}, where \eqn{cost} is the cost of the unique existing path. The default value of \eqn{widen_factor} is 0.2.
 }
 \examples{
 # create a correlation matrix, define some correlations

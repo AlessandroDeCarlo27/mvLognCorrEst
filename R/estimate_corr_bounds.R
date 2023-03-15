@@ -7,11 +7,12 @@
 #'
 #' The cost of each path is computed by multiplying the correlations met along the path and, the minimum and the maximum costs are used
 #' to identify the indirect correlation range. If there is not any path between two nodes, maximum and minimum values will be set to \code{NA}. If
-#' there is a unique path, the bound is computed considering \eqn{cost +/- 0.2*cost} where \eqn{cost} is the cost of the unique existing path.
+#' there is a unique path, the bound is computed considering \eqn{cost +/- widen_factor*cost}, where \eqn{cost} is the cost of the unique existing path. The default value of \eqn{widen_factor} is 0.2.
 #' @export
 #' @importFrom igraph graph_from_adjacency_matrix all_simple_paths
 #' @param corrMat Matrix Object which represents a correlation matrix. Indirect correlations to be estimated must be
 #' indicated by \code{NA}. This matrix must be symmetric, thus it must contain at least two \code{NA} values.
+#' @param widen_factor number between 0 and 1. If there is a unique path, the range for that indirect correlation is computed considering \eqn{cost +/- widen_factor*cost} where \eqn{cost} is the cost of the unique existing path. Default value is 0.2.
 #' @return A matrix object with N(= number of indirect correlations) rows and 4 columns reporting:
 #' \itemize{
 #'    \item{\code{var1}:} {numerical index of \eqn{X1}, the first variable of the couple for which the indirect correlation has to be estimated}
@@ -56,7 +57,7 @@
 
 
 
-estimate_corr_bounds <- function(corrMat){
+estimate_corr_bounds <- function(corrMat,widen_factor=0.2){
 
     validate_corrMatrix(corrMat)
 
@@ -104,7 +105,7 @@ estimate_corr_bounds <- function(corrMat){
     #computing bounds of indirect correlations to estimate
     for (i in 1:nrow(bounds)) {
         paths <- igraph::all_simple_paths(g1,bounds[i,1],bounds[i,2],cutoff=-1)
-        bounds[i,3:4] <- get_bounds(corrmat = corrMat,paths)
+        bounds[i,3:4] <- get_bounds(corrmat = corrMat,paths,widen_factor=widen_factor)
 
     }
     return(bounds)

@@ -6,9 +6,10 @@
 #' the middle the sequence of nodes to visit before reaching the target. For each path, the relative
 #' cost is computed by multiplying the correlations met along the path. Then, their minimum and maximum values are returned in a 2-d
 #' array. If there is not any path between two nodes, maximum and minimum values will be set to \code{NA}. If
-#' there is a unique path, the bound is computed considering \eqn{cost +/- 0.5*cost}.
+#' there is a unique path, the bound is computed considering \eqn{cost +/- widen_factor*cost}.
 #' @param corrmat Matrix Object. It represents the correlation structure among variables
 #' @param list_path List Object. It contains all the possible paths between two nodes of the graph.
+#' @param widen_factor number between 0 and 1. If there is a unique path, the range for that indirect correlation is computed considering \eqn{cost +/- widen_factor*cost} where \eqn{cost} is the cost of the unique existing path. Default value is 0.2.
 #' @return Array object with minimum and maximum costs of the possible paths between a couple
 #' of nodes
 #' @note
@@ -17,7 +18,7 @@
 #' @author Alessandro De Carlo \email{alessandro.decarlo01@@universitadipavia.it}
 #' @noRd
 
-get_bounds <- function(corrmat,list_path){
+get_bounds <- function(corrmat,list_path,widen_factor=0.2){
     #if a path that links two variables does not exist the bounds are set to NA
     #in the optimization step it will be set to 0
     if (length(list_path)==0) {
@@ -27,11 +28,11 @@ get_bounds <- function(corrmat,list_path){
     if (length(list_path)==1) {
         single_value <- get_pathProduct(corrmat,as.vector(list_path[[1]]))
         if(single_value<0){
-            max_r <- single_value+(abs(single_value)/5)
-            min_r <- max(single_value-(abs(single_value)/5),-1) #prevent lower bounds < -1
+            max_r <- single_value+(abs(single_value)*widen_factor)
+            min_r <- max(single_value-(abs(single_value)*widen_factor),-1) #prevent lower bounds < -1
         }else{
-            max_r <- min(single_value+(single_value/5),1) #prevent upper bounds >1
-            min_r <- single_value-(single_value/5)
+            max_r <- min(single_value+(single_value*widen_factor),1) #prevent upper bounds >1
+            min_r <- single_value-(single_value*widen_factor)
         }
         return(array(c(min_r,max_r)))
     }

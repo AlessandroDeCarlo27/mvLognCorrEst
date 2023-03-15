@@ -12,13 +12,14 @@
 #' definite, it is approximated to the nearest positive definite matrix based on the Frobenius norm. Matrix
 #' approximation may alter fixed initial correlations. If this flag is set to \emph{FALSE} (default option), matrix approximation
 #' is skipped and a warning message is returned.
+#' @param widen_factor number between 0 and 1. If there is a unique path, the range for that indirect correlation is computed considering \eqn{cost +/- widen_factor*cost}, where \eqn{cost} is the cost of the unique existing path. Default value is 0.2.
 #' @details Indirect correlations are estimated solving a constrained optimization problem. Starting
 #' from the fixed correlations, a correlation graph is built. Then, for each couple of variables whose indirect
 #' correlation is unknown (i.e. \code{NA} values), all the possible paths among them are considered (without
 #' visiting a node more than once). The cost of each path is computed by multiplying the correlations along it.
 #' The maximum and the minimum costs provide a reasonable range for the indirect correlation value.
 #' If there is not any path between two nodes, that indirect correlation will not be estimated and it will be
-#' automatically set to 0. If there is a unique path, the bound is computed considering \eqn{cost +/- 0.2*cost} where \eqn{cost} is the cost of the unique existing path.
+#' automatically set to 0. If there is a unique path, the range for that indirect correlation is computed considering \eqn{cost +/- widen_factor*cost}, where \eqn{cost} is the cost of the unique existing path. The default value of \eqn{widen_factor} is 0.2.
 #'
 #' Given the bounds of indirect correlations, a constrained optimization problem is solved by minimizing the negative
 #' of minimum eigenvalue of correlation matrix. The starting values for the indirect correlation values are set equal to
@@ -96,7 +97,7 @@
 
 
 
-estimate_indirect_corr <- function(corrMatStart,force_estimate=FALSE){
+estimate_indirect_corr <- function(corrMatStart,force_estimate=FALSE,widen_factor=0.2){
 
     #VALIDATE INPUT
     validate_corrMatrix(corrMatStart)
@@ -106,7 +107,7 @@ estimate_indirect_corr <- function(corrMatStart,force_estimate=FALSE){
         stop("No indirect correlations to estimate are declared")
     }
     #bounds of correlation matrix
-    bounds <- estimate_corr_bounds(corrMatStart)
+    bounds <- estimate_corr_bounds(corrMatStart,widen_factor)
 
     #test if all bounds are NA: this implies that all indirect correlations estimates will be set to 0
     if(all(is.na(bounds[,3]))&&all(is.na(bounds[,4]))){
